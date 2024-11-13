@@ -1,0 +1,32 @@
+{
+  "name": "dash-electron-chart",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.example.dashappelectron",
+    "mac": {
+      "target": "dmg",
+      "icon": "../icons/macos/fpbio_icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "extraResources": [
+      {
+        "from": "../dist/DashApp",
+        "to": "DashApp",
+        "filter": ["**/*"]
+      }
+    ]
+  }
+}
