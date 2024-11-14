@@ -1,77 +1,88 @@
-const { app, BrowserWindow } = require("electron");
-const path = require("path");
-const { spawn } = require("child_process");
-const http = require("http");
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
 
 let mainWindow;
 let dashAppProcess;
+const logFilePath = path.join(app.getPath('userData'), 'electron_app_log.txt');
 
+// Function to write logs to a file
+function logToFile(message) {
+    fs.appendFileSync(logFilePath, `${new Date().toISOString()} - ${message}\n`);
+}
+// Define path to DashApp based on build or dev environment
+const dashAppPath = process.env.NODE_ENV === 'development' 
+    ? path.join(__dirname, 'dist', 'DashApp.exe') 
+    : path.join(process.resourcesPath, 'DashApp.exe');
+
+// Log the path for troubleshooting
+console.log(`DashApp expected at: ${dashAppPath}`);
+fs.access(dashAppPath, fs.constants.F_OK, (err) => {
+    if (err) {
+        console.error("DashApp.exe not found at:", dashAppPath);
+    } else {
+        console.log("DashApp.exe is correctly found at:", dashAppPath);
+    }
+});
+// Function to create the main application window
 function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-    },
-  });
-
-  // Start polling for the Dash app to be ready
-  pollForDashApp();
-
-  mainWindow.on("closed", function () {
-    mainWindow = null;
-    if (dashAppProcess) dashAppProcess.kill(); // Ensure Dash app shuts down
-  });
-}
-
-function pollForDashApp() {
-  const DASH_APP_URL = "http://127.0.0.1:8050";
-
-  const checkServer = () => {
-    http
-      .get(DASH_APP_URL, (res) => {
-        if (res.statusCode === 200) {
-          // Server is ready, load the URL
-          mainWindow.loadURL(DASH_APP_URL);
-        } else {
-          // Try again in a moment if server not yet ready
-          setTimeout(checkServer, 500);
+    mainWindow = new BrowserWindow({
+        width: 800,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            enableRemoteModule: false
         }
-      })
-      .on("error", () => {
-        // Server not ready yet, try again
-        setTimeout(checkServer, 500);
-      });
-  };
+    });
 
-  checkServer();
+    mainWindow.loadURL('http://127.0.0.1:8050');
+    mainWindow.webContents.openDevTools();
+
+    mainWindow.on('closed', function () {
+        mainWindow = null;
+        if (dashAppProcess) {
+            dashAppProcess.kill();
+            logToFile("DashApp process killed on window close.");
+        }
+    });
 }
 
+// Function to start the Dash app as a background process
 function startDashApp() {
-  // Reference the DashApp binary in the unpacked `extraResources` directory
-  const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp"); // Ensure binary name matches exactly
-  dashAppProcess = spawn(dashAppPath, [], { detached: true });
+    const dashAppPath = path.join(process.resourcesPath, 'DashApp', 'DashApp.exe');
 
-  dashAppProcess.on("error", (err) => {
-    console.error("Failed to start Dash app:", err);
-  });
+    logToFile(`Attempting to start DashApp from: ${dashAppPath}`);
 
-  dashAppProcess.on("exit", (code) => {
-    console.log("Dash app exited with code:", code);
-  });
+    dashAppProcess = spawn(dashAppPath, [], { detached: true });
+
+    dashAppProcess.on('error', (err) => {
+        logToFile(`Failed to start DashApp: ${err}`);
+    });
+
+    dashAppProcess.on('exit', (code) => {
+        logToFile(`DashApp exited with code: ${code}`);
+    });
+
+    logToFile("DashApp process started successfully.");
 }
 
-app.on("ready", () => {
-  startDashApp();
-  createWindow();
+app.on('ready', () => {
+    logToFile("Electron app is ready.");
+    startDashApp();
+    createWindow();
 });
 
-app.on("window-all-closed", function () {
-  if (process.platform !== "darwin") app.quit();
+app.on('window-all-closed', function () {
+    if (process.platform !== 'darwin') app.quit();
 });
 
-app.on("activate", function () {
-  if (mainWindow === null) createWindow();
+app.on('activate', function () {
+    if (mainWindow === null) createWindow();
 });
+
+logToFile("Main process started.");
+
+// Export log file path for verification
+console.log(`Logs are being saved to ${logFilePath}`);

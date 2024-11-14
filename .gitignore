@@ -7,9 +7,9 @@
 public/*
 !public/.keep
 cache/
+.env/
 env
 env_bak
-# .env*
 !.env.example
 dist/*
 build/

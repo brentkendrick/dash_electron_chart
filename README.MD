@@ -123,13 +123,25 @@ mkdir electron-app
 cd electron-app
 ```
 
-Initialize a new Node.js project (creates a basic package.json file):
+Initialize a new Node.js project (creates a basic package.json file if one doesn't exist):
 
 ```bash
 npm init -y
 ```
 
 Create a main.js file in the electron-app directory to launch the Dash app executable in an Electron window:
+
+Note: For Windows, replace this line (Mac version):
+
+```javascript
+const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp");
+```
+
+with this:
+
+```javascript
+const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp.exe");
+```
 
 ```javascript
 const { app, BrowserWindow } = require("electron");
@@ -266,6 +278,10 @@ To run the Electron app, open 2 consoles. In the first, navigate to the electron
 ```bash
 ../dist/DashApp/DashApp
 ```
+
+<<OR, move the relevant exe files over to node_modules>>
+Copy the \\dash_electron_chart\\dist\\DashApp folder over to:
+\\dash_electron_chart\\electron-app\\node_modules\\electron\\dist\\resources\\
 
 In the second console, in the electron-app subdirectory, run:
 

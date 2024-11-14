@@ -21,12 +21,15 @@
       "icon": "../icons/macos/fpbio_icon.icns",
       "category": "public.app-category.developer-tools"
     },
-    "extraResources": [
+    "win": {
+      "target": "nsis",
+      "icon": "../icons/windows/fp-bio-logo-large.ico"
+    },
+   "extraResources": [
       {
-        "from": "../dist/DashApp",
-        "to": "DashApp",
-        "filter": ["**/*"]
+        "from": "../dist/DashApp", 
+        "to": "DashApp"
       }
-    ]
+  ]
   }
 }
