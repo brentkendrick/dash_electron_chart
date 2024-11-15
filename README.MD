@@ -42,54 +42,22 @@ Install the dependencies in requirements.txt, then run the app with
 python app.py
 ```
 
-If there is a port conflict, find the offending PID with `lsof -i :8050` and stop it with `kill -9 <<PID>>` (replace <<PID>> with the PID number)
+If there is a port conflict, find the offending PID with:
+
+Mac:
+`lsof -i :8050` and stop it with `kill -9 <<PID>>` (replace <<PID>> with the PID number)
+
+Win:
+`netstat -ano | findstr :8050` and stop it with `Stop-Process -Id 12572`
 
 ## Part 2. Create a local executable file with pyinstaller
 
 Before creating a standalone app that doesn't require a browser, we need to bundle python and all the applicable python libraries into a local executable file.
 
-To ensure that the Dash app works correctly when bundled with PyInstaller, it's better to create a spec file that handles how PyInstaller will package the app.
-
-```python
-# app.spec
-from PyInstaller.utils.hooks import collect_all
-
-datas, binaries, hiddenimports = collect_all('dash')
-
-block_cipher = None
-
-a = Analysis(['app.py'],
-             binaries=binaries,
-             datas=datas,
-             hiddenimports=hiddenimports,
-             pathex=[],
-             hookspath=[],
-             runtime_hooks=[],
-             excludes=[],
-             win_no_prefer_redirects=False,
-             win_private_assemblies=False,
-             cipher=block_cipher,
-             noarchive=False)
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-
-exe = EXE(pyz,
-          a.scripts,
-          [],
-          exclude_binaries=True,
-          name='DashApp',
-          debug=False,
-          bootloader_ignore_signals=False,
-          strip=False,
-          upx=True,
-          console=True)
-
-coll = COLLECT(exe, a.binaries, a.zipfiles, a.datas, strip=False, upx=True, name='DashApp')
-```
-
-After modifying the spec file, build the app again using:
+Note: bundling into a single app.exe with the flag pyinstaller --onefile causes 2 app.exe processes to run on Windows, and one of them needs to be manually shut down every time with Task Manager. Many workarounds were attempted without success. For that reason, the pyinstaller flag --onefile is not recommended. flags such as --noconsole, --windowed do not seem to be necessary.
 
 ```bash
-pyinstaller app.spec
+ pyinstaller app.py
 ```
 
 ### Step 2. Test the Standalone Executable
@@ -97,12 +65,12 @@ pyinstaller app.spec
 After PyInstaller finishes packaging your app, the resulting executable file will be located in the dist/ folder. You can run it directly:
 
 ```bash
-./dist/DashApp/DashApp
+./dist/app/app.exe
 ```
 
 This should launch your Dash app (it may take a minute or so to launch), but it will now be a standalone executable without needing to install Python or any dependencies. After you see a message in the terminal that Dash is running, open a browser at localhost:8050 to verify it is working.
 
-## Part 3. Package the Executable into an Electron App
+## Part 3. Package the Executable and related files into an Electron App
 
 To wrap your Dash app in Electron, you'll need to create an Electron wrapper around the executable. Electron is a framework for building desktop apps using web technologies, and in this case, you can use it to serve the Dash app without launching a separate browser.
 
@@ -114,113 +82,16 @@ Install [Node.js](https://nodejs.org) if you haven't already.
 
 ### Step 2: Create an Electron App
 
-Create a simple Electron wrapper for your Dash app.
+Create a simple Electron wrapper for your Dash app. Key files for creation of the app included in this repository include:
 
-In your project folder, create a new directory called electron-app/ and navigate into it:
+- package.json (includes a reference in extraResources to the path for the Dash app.exe file and associated files that get bundled during creation of the electron app, along with some paths for icon files)
+- main.js (includes a path to launch the bundled Dash app.exe file referenced above)
+- some icon files
 
-```bash
-mkdir electron-app
-cd electron-app
-```
-
-Initialize a new Node.js project (creates a basic package.json file if one doesn't exist):
+Initialize a new Node.js project (creates a basic package.json file if one doesn't exist, but one will exist already in this repo, and it shouldn't be overwritten by the initialization):
 
 ```bash
 npm init -y
-```
-
-Create a main.js file in the electron-app directory to launch the Dash app executable in an Electron window:
-
-Note: For Windows, replace this line (Mac version):
-
-```javascript
-const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp");
-```
-
-with this:
-
-```javascript
-const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp.exe");
-```
-
-```javascript
-const { app, BrowserWindow } = require("electron");
-const path = require("path");
-const { spawn } = require("child_process");
-const http = require("http");
-
-let mainWindow;
-let dashAppProcess;
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      enableRemoteModule: false,
-    },
-  });
-
-  // Start polling for the Dash app to be ready
-  pollForDashApp();
-
-  mainWindow.on("closed", function () {
-    mainWindow = null;
-    if (dashAppProcess) dashAppProcess.kill(); // Ensure Dash app shuts down
-  });
-}
-
-function pollForDashApp() {
-  const DASH_APP_URL = "http://127.0.0.1:8050";
-
-  const checkServer = () => {
-    http
-      .get(DASH_APP_URL, (res) => {
-        if (res.statusCode === 200) {
-          // Server is ready, load the URL
-          mainWindow.loadURL(DASH_APP_URL);
-        } else {
-          // Try again in a moment if server not yet ready
-          setTimeout(checkServer, 500);
-        }
-      })
-      .on("error", () => {
-        // Server not ready yet, try again
-        setTimeout(checkServer, 500);
-      });
-  };
-
-  checkServer();
-}
-
-function startDashApp() {
-  // Reference the DashApp binary in the unpacked `extraResources` directory
-  const dashAppPath = path.join(process.resourcesPath, "DashApp", "DashApp"); // Ensure binary name matches exactly
-  dashAppProcess = spawn(dashAppPath, [], { detached: true });
-
-  dashAppProcess.on("error", (err) => {
-    console.error("Failed to start Dash app:", err);
-  });
-
-  dashAppProcess.on("exit", (code) => {
-    console.log("Dash app exited with code:", code);
-  });
-}
-
-app.on("ready", () => {
-  startDashApp();
-  createWindow();
-});
-
-app.on("window-all-closed", function () {
-  if (process.platform !== "darwin") app.quit();
-});
-
-app.on("activate", function () {
-  if (mainWindow === null) createWindow();
-});
 ```
 
 ### Step 3: Package the Electron App
@@ -238,50 +109,11 @@ Now, install Electron and Electron Builder to allow packaging the app into a sta
 npm install electron electron-builder --save-dev
 ```
 
-Modify your package.json to:
-
-```json
-{
-  "name": "electron-app",
-  "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
-  },
-  "build": {
-    "appId": "com.example.dashappelectron",
-    "mac": {
-      "target": "dmg"
-    },
-    "extraResources": [
-      {
-        "from": "../dist/DashApp",
-        "to": "DashApp",
-        "filter": ["**/*"]
-      }
-    ]
-  }
-}
-```
-
 To run the Electron app, open 2 consoles. In the first, navigate to the electron-app subdirectory, start the Dash app binary executable:
 
 ```bash
-../dist/DashApp/DashApp
+../dist/app/app.exe
 ```
-
-<<OR, move the relevant exe files over to node_modules>>
-Copy the \\dash_electron_chart\\dist\\DashApp folder over to:
-\\dash_electron_chart\\electron-app\\node_modules\\electron\\dist\\resources\\
 
 In the second console, in the electron-app subdirectory, run:
 
@@ -292,8 +124,6 @@ npm start
 This will launch the Electron app, which will start the Dash app in a browser window.
 
 ### Step 4: Package the Electron App
-
-Install Dependencies: Ensure that all required dependencies for Electron are installed:
 
 Create an App Icon: The build option includes "icon". You can create an .icns file and place it in the build/ directory. This is optional, but it’s a good practice to have an icon for your app.
 

@@ -49,7 +49,7 @@ function pollForDashApp() {
 
 function startDashApp() {
     // Reference the DashApp binary in the unpacked `extraResources` directory
-    const dashAppPath = path.join(process.resourcesPath, 'DashApp', 'DashApp'); // Ensure binary name matches exactly
+    const dashAppPath = path.join(process.resourcesPath, 'DashApp', 'app'); // Ensure binary name matches exactly
     dashAppProcess = spawn(dashAppPath, [], { detached: true });
 
     dashAppProcess.on('error', (err) => {

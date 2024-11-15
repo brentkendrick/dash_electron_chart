@@ -27,7 +27,7 @@
     },
    "extraResources": [
       {
-        "from": "../dist/DashApp", 
+        "from": "../dist/app", 
         "to": "DashApp"
       }
   ]
