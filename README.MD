@@ -1,40 +1,6 @@
 # Building the app
 
-## Part 1. Create the app file in the project directory (e.g. dash_electron_graph):
-
-```py
-# app.py
-
-from dash import Dash, html, dcc
-import plotly.express as px
-import pandas as pd
-
-
-# Sample data
-df = pd.DataFrame(
-    {
-        "Fruit": ["Apples", "Oranges", "Bananas", "Grapes"],
-        "Amount": [4, 1, 2, 5],
-        "City": ["SF", "SF", "NYC", "NYC"],
-    }
-)
-
-fig = px.bar(df, x="Fruit", y="Amount", color="City", barmode="group")
-
-app = Dash(__name__)
-app.layout = html.Div(
-    children=[
-        html.H1(children="Hello Dash"),
-        html.Div(children="A simple web app with Dash."),
-        dcc.Graph(id="example-graph", figure=fig),
-    ]
-)
-
-
-if __name__ == "__main__":
-    app.run_server(debug=False)
-
-```
+## Part 1. Clone the repo
 
 Install the dependencies in requirements.txt, then run the app with
 
@@ -65,7 +31,8 @@ Note: bundling into a single app.exe with the flag pyinstaller --onefile causes 
 After PyInstaller finishes packaging your app, the resulting executable file will be located in the dist/ folder. You can run it directly:
 
 ```bash
-./dist/app/app.exe
+.\dist\app\app.exe # Win
+./dist/app/app # Mac
 ```
 
 This should launch your Dash app (it may take a minute or so to launch), but it will now be a standalone executable without needing to install Python or any dependencies. After you see a message in the terminal that Dash is running, open a browser at localhost:8050 to verify it is working.
